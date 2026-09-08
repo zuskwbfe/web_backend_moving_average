@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Каталог прогнозов</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="catalog-body">
+
+    <header class="catalog-header">
+        <span class="home-link">AM Forecast</span>
+    </header>
+
+    <div class="filter-bar-wrapper">
+        <form method="get" action="/" class="filter-bar">
+            <input
+                type="range"
+                name="min_revenue"
+                class="filter-slider"
+                min="0"
+                max="500"
+                step="5"
+                value="{{ min_revenue if min_revenue else 0 }}"
+            >
+            <button type="submit" class="filter-button">Найти</button>
+        </form>
+    </div>
+
+    <div class="filter-current-value">Минимальная сумма прогноза: {{ min_revenue if min_revenue else 0 }} млрд ₽</div>
+
+    <div class="tile-grid">
+        {% for forecast in forecasts %}
+        <a href="/forecast/{{ forecast.id }}" class="tile-card">
+            <img src="{{ forecast.image_url }}" alt="{{ forecast.title }}" class="tile-image">
+            <div class="tile-info">
+                <div class="tile-title">{{ forecast.title }}</div>
+                <div class="tile-revenue">{{ forecast.predicted_revenue }} млрд ₽</div>
+                <div class="tile-likes">
+                    <img src="http://localhost:9000/forecasts/like.png" alt="Лайк">
+                    <span>{{ forecast.likes_count }}</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <nav class="tab-bar">
+        <a href="/forecast/1" class="tab-item">Лента</a>
+        <a href="/draft" class="tab-item">Добавление</a>
+        <a href="/" class="tab-item tab-active">Список</a>
+    </nav>
+
+</body>
+</html>
