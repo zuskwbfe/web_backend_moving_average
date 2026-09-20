@@ -1,117 +1,95 @@
 from fastapi import APIRouter, Request, Query
 from fastapi.templating import Jinja2Templates
-from data.collections import (
-    forecasts_db,
-    historical_revenue_quarterly,
-    historical_revenue_monthly,
-    historical_revenue_yearly,
-)
+from data.collections import periods_db
 
 router = APIRouter()
 # Указываем, где искать HTML файлы
 templates = Jinja2Templates(directory="templates")
 
-HISTORY_BY_UNIT = {
-    "month": historical_revenue_monthly,
-    "quarter": historical_revenue_quarterly,
-    "year": historical_revenue_yearly,
-}
 
-# Во сколько раз домножить среднее по window_unit, чтобы получить оценку для period_type цели
-MULTIPLIER = {
-    ("year", "quarter"): 4,
-    ("year", "month"): 12,
-    ("quarter", "month"): 3,
+# Словарь форм слова "день" в зависимости от числа
+DAY_WORD_FORMS = {
+    "one": "день",
+    "few": "дня",
+    "many": "дней",
 }
 
 
-def calculate_forecast(target_period: str, window_count: int | None, window_unit: str | None, period_type: str) -> float | None:
-    """
-    Рассчитывает прогноз методом скользящей средней.
-    window_count — сколько периодов взять, window_unit — периодов какого типа (month/quarter/year).
-    period_type — тип самого прогнозируемого периода (нужен только для домножения, если типы не совпадают).
-    """
-    if window_count is None or window_unit is None:
-        return None
+def get_days_word(count: int) -> str:
+    """Возвращает согласованную форму слова 'день' для числа count."""
+    remainder_100 = abs(count) % 100
+    remainder_10 = remainder_100 % 10
 
-    history = HISTORY_BY_UNIT[window_unit]
-    periods_order = list(history.keys())
-
-    if target_period in periods_order:
-        target_index = periods_order.index(target_period)
+    if 11 <= remainder_100 <= 14:
+        form = "many"
+    elif remainder_10 == 1:
+        form = "one"
+    elif 2 <= remainder_10 <= 4:
+        form = "few"
     else:
-        target_index = len(periods_order)
+        form = "many"
 
-    start = max(0, target_index - window_count)
-    prior_periods = periods_order[start:target_index]
+    return DAY_WORD_FORMS[form]
 
-    if not prior_periods:
-        return None
 
-    values = [history[p] for p in prior_periods]
-    average = sum(values) / len(values)
-
-    multiplier = MULTIPLIER.get((period_type, window_unit), 1)
-    return round(average * multiplier, 2)
-
+def days_label(count: int) -> str:
+    """Готовая фраза вида '31 день' / '92 дня' / '30 дней'."""
+    return f"{count} {get_days_word(count)}"
 
 @router.get("/")
-def get_catalog(request: Request, min_revenue: str = None):
-
-    parsed_min_revenue = None
-    if min_revenue:
+def get_catalog(request: Request, min_days: str = None):
+    # Поле фильтра — обычный текстовый/слайдер-инпут, парсим вручную
+    parsed_min_days = None
+    if min_days:
         try:
-            parsed_min_revenue = float(min_revenue.replace(",", "."))
+            parsed_min_days = int(float(min_days.replace(",", ".")))
         except ValueError:
-            parsed_min_revenue = None
+            parsed_min_days = None
 
-    published = [f for f in forecasts_db if f["status"] == "published"]
+    published = [p for p in periods_db if p["status"] == "published"]
 
     enriched = []
-    for f in published:
-        predicted = calculate_forecast(f["target_period"], f["window_count"], f["window_unit"], f["period_type"])
-        if parsed_min_revenue is not None and (predicted is None or predicted < parsed_min_revenue):
+    for p in published:
+        if parsed_min_days is not None and p["days_count"] < parsed_min_days:
             continue
         enriched.append({
-            **f,
-            "predicted_revenue": predicted,
-            "likes_count": len(f["likes"])
+            **p,
+            "likes_count": len(p["likes"]),
+            "days_label": days_label(p["days_count"])
         })
 
     return templates.TemplateResponse(
         request=request,
-        name="index.html",
-        context={"forecasts": enriched, "min_revenue": min_revenue}
+        name="period_list.html",
+        context={"periods": enriched, "min_days": min_days}
     )
 
 
-@router.get("/forecast/{forecast_id}")
-def get_forecast_detail(request: Request, forecast_id: int, show_next: bool = Query(False, alias="next")):
-    published = [f for f in forecasts_db if f["status"] == "published"]
+@router.get("/period/{period_id}")
+def get_period_detail(request: Request, period_id: int, show_next: bool = Query(False, alias="next")):
+    published = [p for p in periods_db if p["status"] == "published"]
 
     if show_next:
         current_index = 0
-        for i, f in enumerate(published):
-            if f["id"] == forecast_id:
+        for i, p in enumerate(published):
+            if p["id"] == period_id:
                 current_index = i
                 break
-        forecast_id = published[(current_index + 1) % len(published)]["id"]
+        period_id = published[(current_index + 1) % len(published)]["id"]
 
-    forecast = None
-    for f in published:
-        if f["id"] == forecast_id:
-            forecast = f
+    period = None
+    for p in published:
+        if p["id"] == period_id:
+            period = p
             break
-
-    predicted = calculate_forecast(forecast["target_period"], forecast["window_count"], forecast["window_unit"], forecast["period_type"])
 
     return templates.TemplateResponse(
         request=request,
-        name="feed.html",
+        name="period_feed.html",
         context={
-            "forecast": forecast,
-            "predicted_revenue": predicted,
-            "likes_count": len(forecast["likes"])
+            "period": period,
+            "likes_count": len(period["likes"]),
+            "days_label": days_label(period["days_count"])
         }
     )
 
@@ -119,15 +97,13 @@ def get_forecast_detail(request: Request, forecast_id: int, show_next: bool = Qu
 @router.get("/draft")
 def get_draft(request: Request):
     draft = None
-    for f in forecasts_db:
-        if f["status"] == "draft":
-            draft = f
+    for p in periods_db:
+        if p["status"] == "draft":
+            draft = p
             break
-
-    predicted = calculate_forecast(draft["target_period"], draft["window_count"], draft["window_unit"], draft["period_type"])
 
     return templates.TemplateResponse(
         request=request,
-        name="draft.html",
-        context={"forecast": draft, "predicted_revenue": predicted}
+        name="period_draft.html",
+        context={"period": draft}
     )

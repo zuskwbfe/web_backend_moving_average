@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Добавление — {{ period.title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="draft-body">
+
+    <header class="catalog-header">
+        <span class="home-link">AM Forecast</span>
+    </header>
+
+    <main class="draft-form-wrapper">
+        <div class="draft-card">
+            <div class="draft-card-title">Новый период</div>
+
+            <!-- Изображение и видео — теперь наверху формы -->
+            <div class="draft-media-row">
+                <div class="draft-media-block">
+                    <label>Изображение:</label>
+                    <label class="draft-media-dropzone">
+                        <input type="file" accept="image/*">
+                        {% if period.image_url %}
+                            <img src="{{ period.image_url }}" alt="Изображение">
+                        {% else %}
+                            <span class="draft-media-plus">+</span>
+                        {% endif %}
+                    </label>
+                </div>
+                <div class="draft-media-block">
+                    <label>Видео:</label>
+                    <label class="draft-media-dropzone">
+                        <input type="file" accept="video/*">
+                        {% if period.video_url %}
+                            <img src="{{ period.image_url }}" alt="Превью видео">
+                        {% else %}
+                            <span class="draft-media-plus">+</span>
+                        {% endif %}
+                    </label>
+                </div>
+            </div>
+
+            <div class="draft-field">
+                <label for="title">Период:</label>
+                <input type="text" id="title" value="{{ period.title }}">
+            </div>
+
+            <div class="draft-field">
+                <label for="order">Порядок:</label>
+                <input type="text" id="order" value="{{ period.order }}">
+            </div>
+
+            <div class="draft-field">
+                <label for="days_count">Количество дней:</label>
+                <input type="text" id="days_count" value="{{ period.days_count }}">
+            </div>
+
+            <div class="draft-field">
+                <label for="description">Описание:</label>
+                <textarea id="description">{{ period.description }}</textarea>
+            </div>
+        </div>
+    </main>
+
+    <nav class="tab-bar">
+        <a href="/period/1" class="tab-item">Лента</a>
+        <a href="/draft" class="tab-item tab-active">Добавление</a>
+        <a href="/" class="tab-item">Список</a>
+    </nav>
+
+</body>
+</html>
