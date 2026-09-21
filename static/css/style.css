@@ -74,11 +74,11 @@ a {
     object-fit: cover;
 }
 
-/* Параметры — справа, привязаны к фиксированной точке сверху, текст по правому краю */
+/* Параметры — справа, фиксированная точка сверху, текст по правому краю */
 .side-fields {
     position: absolute;
     right: 16px;
-    top: 62%;
+    top: 42%;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -93,16 +93,15 @@ a {
     opacity: 0.95;
 }
 
-/* Иконки — отдельно, всегда на одном и том же месте, не зависят от параметров */
+/* Иконки — сразу под параметрами, фиксированная точка, не зависит от контента */
 .side-icons {
     position: absolute;
     right: 16px;
-    bottom: 110px;
+    top: 54%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    top: 47%;
+    gap: 18px;
 }
 
 .description-overlay {
@@ -322,6 +321,26 @@ a {
     overflow: hidden;
 }
 
+.tile-delete-form {
+    margin-top: 6px;
+}
+
+.tile-delete-btn {
+    width: 100%;
+    padding: 6px 0;
+    background: var(--color-accent);
+    color: #FFFFFF;
+    border: none;
+    border-radius: var(--radius-button);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tile-delete-btn:hover {
+    background: var(--color-accent-hover);
+}
+
 .tile-image {
     width: 100%;
     aspect-ratio: 1/1;
@@ -430,12 +449,13 @@ a {
 
 .draft-media-row {
     display: flex;
+    flex-direction: column;
     gap: 8px;
     margin-bottom: 20px;
 }
 
 .draft-media-block {
-    flex: 1;
+    width: 100%;
     min-width: 0;
 }
 
@@ -478,4 +498,22 @@ a {
     font-size: 32px;
     font-weight: 300;
     color: var(--color-accent);
+}
+
+.draft-submit-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 12px 0;
+    background: var(--color-accent);
+    color: #FFFFFF;
+    border: none;
+    border-radius: var(--radius-button);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.draft-submit-btn:hover {
+    background: var(--color-accent-hover);
 }

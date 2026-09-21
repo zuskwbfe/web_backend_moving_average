@@ -14,25 +14,28 @@
     <main class="video-layout">
         <div class="tiktok-container">
             <video autoplay loop muted playsinline>
-                <source src="{{ period.video_url }}" type="video/mp4">
+                <source src="{{ video_url }}" type="video/mp4">
             </video>
 
+            <!-- Параметры — справа, текст выровнен по правому краю -->
             <div class="side-fields">
-                <span class="theme-field">Порядок: {{ period.order }}</span>
+                <span class="theme-field">Порядок: {{ period.order_number }}</span>
                 <span class="theme-field">{{ days_label }}</span>
             </div>
 
+            <!-- Иконки — отдельно, зафиксированы на постоянном месте -->
             <div class="side-icons">
                 <div class="like-button">
-                    <img src="http://localhost:9000/forecasts/like.png" alt="Лайк" class="like-icon">
+                    <img src="/static/img/like.png" alt="Лайк" class="like-icon">
                     <span class="like-count">{{ likes_count }}</span>
                 </div>
 
                 <a href="/period/{{ period.id }}?next=true" class="next-button">
-                    <img src="http://localhost:9000/forecasts/next.png" alt="Следующий">
+                    <img src="/static/img/next.png" alt="Следующий">
                 </a>
             </div>
 
+            <!-- Название и описание — снизу поверх видео -->
             <div class="description-overlay">
                 <strong>{{ period.title }}</strong>
 

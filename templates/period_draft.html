@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Добавление — {{ period.title }}</title>
+    <title>Добавление</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="draft-body">
@@ -13,53 +13,76 @@
 
     <main class="draft-form-wrapper">
         <div class="draft-card">
+
+            {% if period is none %}
+            <!-- ШАГ 1: черновика ещё нет — форма создания -->
             <div class="draft-card-title">Новый период</div>
 
-            <!-- Изображение и видео — теперь наверху формы -->
+            <form action="/draft/create" method="post">
+                <div class="draft-field">
+                    <label for="title">Название:</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+
+                <div class="draft-media-row">
+                    <div class="draft-media-block">
+                        <label>Изображение:</label>
+                        <label class="draft-media-dropzone">
+                            <input type="file" accept="image/*">
+                            <span class="draft-media-plus">+</span>
+                        </label>
+                    </div>
+                    <div class="draft-media-block">
+                        <label>Видео:</label>
+                        <label class="draft-media-dropzone">
+                            <input type="file" accept="video/*">
+                            <span class="draft-media-plus">+</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="draft-submit-btn">Далее</button>
+            </form>
+
+            {% else %}
+            <!-- ШАГ 2: черновик уже создан — форма публикации -->
+            <div class="draft-card-title">Публикация периода «{{ period.title }}»</div>
+
             <div class="draft-media-row">
                 <div class="draft-media-block">
                     <label>Изображение:</label>
-                    <label class="draft-media-dropzone">
-                        <input type="file" accept="image/*">
-                        {% if period.image_url %}
-                            <img src="{{ period.image_url }}" alt="Изображение">
-                        {% else %}
-                            <span class="draft-media-plus">+</span>
-                        {% endif %}
-                    </label>
+                    <div class="draft-media-dropzone">
+                        <img src="{{ image_url }}" alt="Изображение">
+                    </div>
                 </div>
                 <div class="draft-media-block">
                     <label>Видео:</label>
-                    <label class="draft-media-dropzone">
-                        <input type="file" accept="video/*">
-                        {% if period.video_url %}
-                            <img src="{{ period.image_url }}" alt="Превью видео">
-                        {% else %}
-                            <span class="draft-media-plus">+</span>
-                        {% endif %}
-                    </label>
+                    <div class="draft-media-dropzone">
+                        <img src="{{ image_url }}" alt="Превью видео">
+                    </div>
                 </div>
             </div>
 
-            <div class="draft-field">
-                <label for="title">Период:</label>
-                <input type="text" id="title" value="{{ period.title }}">
-            </div>
+            <form action="/draft/publish" method="post">
+                <div class="draft-field">
+                    <label for="order_number">Порядок:</label>
+                    <input type="number" id="order_number" name="order_number" required>
+                </div>
 
-            <div class="draft-field">
-                <label for="order">Порядок:</label>
-                <input type="text" id="order" value="{{ period.order }}">
-            </div>
+                <div class="draft-field">
+                    <label for="days_count">Количество дней:</label>
+                    <input type="number" id="days_count" name="days_count" required>
+                </div>
 
-            <div class="draft-field">
-                <label for="days_count">Количество дней:</label>
-                <input type="text" id="days_count" value="{{ period.days_count }}">
-            </div>
+                <div class="draft-field">
+                    <label for="description">Краткое описание:</label>
+                    <textarea id="description" name="description" required></textarea>
+                </div>
 
-            <div class="draft-field">
-                <label for="description">Описание:</label>
-                <textarea id="description">{{ period.description }}</textarea>
-            </div>
+                <button type="submit" class="draft-submit-btn">Опубликовать</button>
+            </form>
+            {% endif %}
+
         </div>
     </main>
 

@@ -30,17 +30,22 @@
 
     <div class="tile-grid">
         {% for period in periods %}
-        <a href="/period/{{ period.id }}" class="tile-card">
-            <img src="{{ period.image_url }}" alt="{{ period.title }}" class="tile-image">
-            <div class="tile-info">
-                <div class="tile-title">{{ period.title }}</div>
-                <div class="tile-revenue">{{ period.days_label }}</div>
-                <div class="tile-likes">
-                    <img src="http://localhost:9000/forecasts/like.png" alt="Лайк">
-                    <span>{{ period.likes_count }}</span>
+        <div class="tile-card-wrapper">
+            <a href="/period/{{ period.id }}" class="tile-card">
+                <img src="{{ period.image_url }}" alt="{{ period.title }}" class="tile-image">
+                <div class="tile-info">
+                    <div class="tile-title">{{ period.title }}</div>
+                    <div class="tile-revenue">{{ period.days_label }}</div>
+                    <div class="tile-likes">
+                        <img src="/static/img/like.png" alt="Лайк">
+                        <span>{{ period.likes_count }}</span>
+                    </div>
                 </div>
-            </div>
-        </a>
+            </a>
+            <form action="/period/{{ period.id }}/delete" method="post" class="tile-delete-form">
+                <button type="submit" class="tile-delete-btn">Удалить</button>
+            </form>
+        </div>
         {% endfor %}
     </div>
 
