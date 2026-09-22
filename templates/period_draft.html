@@ -15,7 +15,6 @@
         <div class="draft-card">
 
             {% if period is none %}
-            <!-- ШАГ 1: черновика ещё нет — форма создания -->
             <div class="draft-card-title">Новый период</div>
 
             <form action="/draft/create" method="post">
@@ -45,7 +44,6 @@
             </form>
 
             {% else %}
-            <!-- ШАГ 2: черновик уже создан — форма публикации -->
             <div class="draft-card-title">Публикация периода «{{ period.title }}»</div>
 
             <div class="draft-media-row">
