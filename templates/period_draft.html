@@ -15,9 +15,10 @@
         <div class="draft-card">
 
             {% if period is none %}
+            <!-- ШАГ 1: черновика ещё нет — форма создания -->
             <div class="draft-card-title">Новый период</div>
 
-            <form action="/draft/create" method="post">
+            <form action="/period/draft/create" method="post">
                 <div class="draft-field">
                     <label for="title">Название:</label>
                     <input type="text" id="title" name="title" required>
@@ -28,14 +29,14 @@
                         <label>Изображение:</label>
                         <label class="draft-media-dropzone">
                             <input type="file" accept="image/*">
-                            <span class="draft-media-plus">+</span>
+                            <img src="/static/img/default.png" alt="Изображение по умолчанию">
                         </label>
                     </div>
                     <div class="draft-media-block">
                         <label>Видео:</label>
                         <label class="draft-media-dropzone">
                             <input type="file" accept="video/*">
-                            <span class="draft-media-plus">+</span>
+                            <img src="/static/img/default.png" alt="Видео по умолчанию">
                         </label>
                     </div>
                 </div>
@@ -44,6 +45,7 @@
             </form>
 
             {% else %}
+            <!-- ШАГ 2: черновик уже создан — форма публикации -->
             <div class="draft-card-title">Публикация периода «{{ period.title }}»</div>
 
             <div class="draft-media-row">
@@ -61,7 +63,7 @@
                 </div>
             </div>
 
-            <form action="/draft/publish" method="post">
+            <form action="/period/draft/publish" method="post">
                 <div class="draft-field">
                     <label for="order_number">Порядок:</label>
                     <input type="number" id="order_number" name="order_number" required>
@@ -86,7 +88,7 @@
 
     <nav class="tab-bar">
         <a href="/period/1" class="tab-item">Лента</a>
-        <a href="/draft" class="tab-item tab-active">Добавление</a>
+        <a href="/period/draft" class="tab-item tab-active">Добавление</a>
         <a href="/" class="tab-item">Список</a>
     </nav>
 

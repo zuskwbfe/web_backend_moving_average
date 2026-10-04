@@ -17,11 +17,13 @@
                 <source src="{{ video_url }}" type="video/mp4">
             </video>
 
+            <!-- Параметры — справа, текст выровнен по правому краю -->
             <div class="side-fields">
                 <span class="theme-field">Порядок: {{ period.order_number }}</span>
                 <span class="theme-field">{{ days_label }}</span>
             </div>
 
+            <!-- Иконки — отдельно, зафиксированы на постоянном месте -->
             <div class="side-icons">
                 <div class="like-button">
                     <img src="/static/img/like.png" alt="Лайк" class="like-icon">
@@ -33,6 +35,7 @@
                 </a>
             </div>
 
+            <!-- Название и описание — снизу поверх видео -->
             <div class="description-overlay">
                 <strong>{{ period.title }}</strong>
 
@@ -48,7 +51,7 @@
 
     <nav class="tab-bar">
         <a href="/period/{{ period.id }}" class="tab-item tab-active">Лента</a>
-        <a href="/draft" class="tab-item">Добавление</a>
+        <a href="/period/draft" class="tab-item">Добавление</a>
         <a href="/" class="tab-item">Список</a>
     </nav>
 

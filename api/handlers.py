@@ -6,14 +6,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.session import get_db
 from models.period import Period
-from models.like import Like
 from models.user import User
+from models.like import Like
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
+# Пока нет авторизации — работаем от лица одного захардкоженного пользователя
 CURRENT_USER_ID = 1
 
+# Фото/видео по умолчанию — если url пустой, показываем их (хранятся локально на сервере)
 DEFAULT_IMAGE_URL = "/static/img/default.png"
 DEFAULT_VIDEO_URL = "/static/img/default.mp4"
 
@@ -41,11 +43,13 @@ def days_label(count: int | None) -> str:
 
 
 def resolve_media(period: Period) -> tuple[str, str]:
+    """Возвращает (image_url, video_url), подставляя значения по умолчанию, если поля пустые."""
     image_url = period.image_url or DEFAULT_IMAGE_URL
     video_url = period.video_url or DEFAULT_VIDEO_URL
     return image_url, video_url
 
 
+# ===== 1. GET / — список (плитка), поиск/фильтрация через ORM =====
 @router.get("/")
 async def get_catalog(request: Request, min_days: str = None, db: AsyncSession = Depends(get_db)):
     parsed_min_days = None
@@ -63,6 +67,7 @@ async def get_catalog(request: Request, min_days: str = None, db: AsyncSession =
     result = await db.execute(stmt)
     periods = result.scalars().all()
 
+    # Считаем лайки одним запросом на все периоды сразу
     likes_result = await db.execute(
         select(Like.period_id, func.count(Like.id)).group_by(Like.period_id)
     )
@@ -87,15 +92,94 @@ async def get_catalog(request: Request, min_days: str = None, db: AsyncSession =
     )
 
 
-# 2. GET /period/{id} — лента
+# ===== 2. GET /period/draft — черновик текущего пользователя, через ORM =====
+# ВАЖНО: этот статичный маршрут должен быть зарегистрирован РАНЬШЕ динамического
+# /period/{period_id} — иначе FastAPI попытается преобразовать "draft" в int и упадёт с 422.
+@router.get("/period/draft")
+async def get_draft(request: Request, db: AsyncSession = Depends(get_db)):
+    stmt = select(Period).where(
+        Period.status == "draft",
+        Period.creator_id == CURRENT_USER_ID
+    )
+    result = await db.execute(stmt)
+    draft = result.scalar_one_or_none()
+
+    if draft is None:
+        # У пользователя ещё нет черновика — показываем форму создания (шаг 1: название/фото/видео)
+        return templates.TemplateResponse(
+            request=request,
+            name="period_draft.html",
+            context={"period": None}
+        )
+
+    # Черновик уже есть — показываем форму публикации (шаг 2: описание + поля темы)
+    image_url, video_url = resolve_media(draft)
+    return templates.TemplateResponse(
+        request=request,
+        name="period_draft.html",
+        context={"period": draft, "image_url": image_url, "video_url": video_url}
+    )
+
+
+# ===== 3. POST создания черновика — через ORM =====
+@router.post("/period/draft/create")
+async def create_draft(
+    title: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    # Проверяем, что у пользователя ещё нет черновика (правило: не более одного)
+    existing = await db.execute(
+        select(Period).where(Period.status == "draft", Period.creator_id == CURRENT_USER_ID)
+    )
+    if existing.scalar_one_or_none() is not None:
+        return RedirectResponse(url="/period/draft", status_code=303)
+
+    new_period = Period(
+        title=title,
+        status="draft",
+        creator_id=CURRENT_USER_ID,
+        # image_url/video_url оставляем пустыми — новые файлы в этой ЛР не сохраняются
+    )
+    db.add(new_period)
+    await db.commit()
+
+    return RedirectResponse(url="/period/draft", status_code=303)
+
+
+# ===== 4. POST публикации черновика — через ORM =====
+@router.post("/period/draft/publish")
+async def publish_draft(
+    description: str = Form(...),
+    order_number: int = Form(...),
+    days_count: int = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(Period).where(Period.status == "draft", Period.creator_id == CURRENT_USER_ID)
+    result = await db.execute(stmt)
+    draft = result.scalar_one_or_none()
+
+    if draft is not None:
+        draft.description = description
+        draft.order_number = order_number
+        draft.days_count = days_count
+        draft.status = "published"
+        draft.published_at = func.now()
+        await db.commit()
+
+    return RedirectResponse(url="/", status_code=303)
+
+
+# ===== 5. GET /period/{id} — лента, через ORM =====
 @router.get("/period/{period_id}")
 async def get_period_detail(request: Request, period_id: int, next: bool = False, db: AsyncSession = Depends(get_db)):
     if next:
+        # Узнаём order_number текущей карточки одним лёгким запросом
         current_order_result = await db.execute(
             select(Period.order_number).where(Period.id == period_id)
         )
         current_order = current_order_result.scalar_one_or_none()
 
+        # Ищем следующую опубликованную карточку ПО ПОРЯДКУ — один запрос, LIMIT 1
         next_stmt = (
             select(Period)
             .where(Period.status == "published", Period.order_number > current_order)
@@ -106,6 +190,7 @@ async def get_period_detail(request: Request, period_id: int, next: bool = False
         period = result.scalar_one_or_none()
 
         if period is None:
+            # Дошли до конца — заворачиваем на самую первую опубликованную карточку
             first_stmt = (
                 select(Period)
                 .where(Period.status == "published")
@@ -115,11 +200,13 @@ async def get_period_detail(request: Request, period_id: int, next: bool = False
             result = await db.execute(first_stmt)
             period = result.scalar_one_or_none()
     else:
+        # Обычный прямой переход — тоже ровно одна строка из БД
         stmt = select(Period).where(Period.id == period_id, Period.status == "published")
         result = await db.execute(stmt)
         period = result.scalar_one_or_none()
 
     if period is None:
+        # Удалённые/несуществующие услуги смотреть нельзя — уходим на список
         return RedirectResponse(url="/", status_code=303)
 
     image_url, video_url = resolve_media(period)
@@ -142,79 +229,7 @@ async def get_period_detail(request: Request, period_id: int, next: bool = False
     )
 
 
-# 3. GET /draft — черновик текущего пользователя
-@router.get("/draft")
-async def get_draft(request: Request, db: AsyncSession = Depends(get_db)):
-    stmt = select(Period).where(
-        Period.status == "draft",
-        Period.creator_id == CURRENT_USER_ID
-    )
-    result = await db.execute(stmt)
-    draft = result.scalar_one_or_none()
-
-    if draft is None:
-        return templates.TemplateResponse(
-            request=request,
-            name="period_draft.html",
-            context={"period": None}
-        )
-
-    image_url, video_url = resolve_media(draft)
-    return templates.TemplateResponse(
-        request=request,
-        name="period_draft.html",
-        context={"period": draft, "image_url": image_url, "video_url": video_url}
-    )
-
-
-# 4. POST создания черновика
-@router.post("/draft/create")
-async def create_draft(
-    title: str = Form(...),
-    db: AsyncSession = Depends(get_db)
-):
-
-    existing = await db.execute(
-        select(Period).where(Period.status == "draft", Period.creator_id == CURRENT_USER_ID)
-    )
-    if existing.scalar_one_or_none() is not None:
-        return RedirectResponse(url="/draft", status_code=303)
-
-    new_period = Period(
-        title=title,
-        status="draft",
-        creator_id=CURRENT_USER_ID,
-    )
-    db.add(new_period)
-    await db.commit()
-
-    return RedirectResponse(url="/draft", status_code=303)
-
-
-# 5. POST публикации черновика
-@router.post("/draft/publish")
-async def publish_draft(
-    description: str = Form(...),
-    order_number: int = Form(...),
-    days_count: int = Form(...),
-    db: AsyncSession = Depends(get_db)
-):
-    stmt = select(Period).where(Period.status == "draft", Period.creator_id == CURRENT_USER_ID)
-    result = await db.execute(stmt)
-    draft = result.scalar_one_or_none()
-
-    if draft is not None:
-        draft.description = description
-        draft.order_number = order_number
-        draft.days_count = days_count
-        draft.status = "published"
-        draft.published_at = func.now()
-        await db.commit()
-
-    return RedirectResponse(url="/", status_code=303)
-
-
-# 6. POST удаления — через курсор, БЕЗ ORM
+# ===== 6. POST удаления — через курсор (сырой SQL), БЕЗ ORM =====
 @router.post("/period/{period_id}/delete")
 async def delete_period(period_id: int, db: AsyncSession = Depends(get_db)):
     update_query = """

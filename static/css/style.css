@@ -48,6 +48,7 @@ a {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    padding-bottom: 55px;
 }
 
 .video-layout {
@@ -204,11 +205,21 @@ a {
 
 /*Нижний таб-бар*/
 .tab-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);      /* на телефоне — по ширине экрана с отступами */
+    max-width: 400px;              /* как у .tiktok-container */
     display: flex;
     gap: 8px;
-    padding: 12px 16px;
+    padding: 10px 12px;
     background: var(--color-card-bg);
-    border-top: 1px solid var(--color-card-border);
+    border: 1px solid var(--color-card-border);
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+    z-index: 10;
 }
 
 .tab-item {
@@ -236,6 +247,7 @@ a {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    padding-bottom: 55px;
 }
 
 .filter-bar-wrapper {
@@ -384,6 +396,7 @@ a {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    padding-bottom: 55px;
 }
 
 .draft-form-wrapper {
@@ -391,6 +404,7 @@ a {
     padding: 20px;
     display: flex;
     justify-content: center;
+    align-items: flex-start;
 }
 
 .draft-card {
@@ -400,6 +414,7 @@ a {
     padding: 24px 20px;
     width: 100%;
     max-width: 320px;
+    padding: 24px 20px 20px;
 }
 
 .draft-card-title {
