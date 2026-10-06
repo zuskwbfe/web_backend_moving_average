@@ -37,7 +37,6 @@ async def login_user(
     current: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Заглушка для 4-й лабораторной: пароль не проверяется, возвращается текущий пользователь."""
     user = (await db.execute(select(User).where(User.id == current.id))).scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")

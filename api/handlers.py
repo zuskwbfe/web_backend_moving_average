@@ -13,10 +13,8 @@ from services.minio_service import get_minio_service
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
-# Пока нет авторизации — работаем от лица одного захардкоженного пользователя
 CURRENT_USER_ID = 1
 
-# Фото/видео по умолчанию — если url пустой, показываем их (хранятся локально на сервере)
 DEFAULT_IMAGE_URL = "/static/img/default.png"
 DEFAULT_VIDEO_URL = "/static/img/default.mp4"
 
@@ -68,7 +66,6 @@ async def get_catalog(request: Request, min_days: str = None, db: AsyncSession =
     result = await db.execute(stmt)
     periods = result.scalars().all()
 
-    # Считаем лайки одним запросом на все периоды сразу
     likes_result = await db.execute(
         select(Like.period_id, func.count(Like.id)).group_by(Like.period_id)
     )
@@ -94,8 +91,6 @@ async def get_catalog(request: Request, min_days: str = None, db: AsyncSession =
 
 
 # ===== 2. GET /period/draft — черновик текущего пользователя, через ORM =====
-# ВАЖНО: этот статичный маршрут должен быть зарегистрирован РАНЬШЕ динамического
-# /period/{period_id} — иначе FastAPI попытается преобразовать "draft" в int и упадёт с 422.
 @router.get("/period/draft")
 async def get_draft(request: Request, db: AsyncSession = Depends(get_db)):
     stmt = select(Period).where(
@@ -106,14 +101,12 @@ async def get_draft(request: Request, db: AsyncSession = Depends(get_db)):
     draft = result.scalar_one_or_none()
 
     if draft is None:
-        # У пользователя ещё нет черновика — показываем форму создания (шаг 1: название/фото/видео)
         return templates.TemplateResponse(
             request=request,
             name="period_draft.html",
             context={"period": None}
         )
 
-    # Черновик уже есть — показываем форму публикации (шаг 2: описание + поля темы)
     image_url, video_url = resolve_media(draft)
     return templates.TemplateResponse(
         request=request,
@@ -128,7 +121,7 @@ async def create_draft(
     title: str = Form(...),
     db: AsyncSession = Depends(get_db)
 ):
-    # Проверяем, что у пользователя ещё нет черновика (правило: не более одного)
+
     existing = await db.execute(
         select(Period).where(Period.status == "draft", Period.creator_id == CURRENT_USER_ID)
     )
@@ -175,13 +168,12 @@ async def publish_draft(
 @router.get("/period/{period_id}")
 async def get_period_detail(request: Request, period_id: int, next: bool = False, db: AsyncSession = Depends(get_db)):
     if next:
-        # Узнаём order_number текущей карточки одним лёгким запросом
+
         current_order_result = await db.execute(
             select(Period.order_number).where(Period.id == period_id)
         )
         current_order = current_order_result.scalar_one_or_none()
 
-        # Ищем следующую опубликованную карточку ПО ПОРЯДКУ — один запрос, LIMIT 1
         next_stmt = (
             select(Period)
             .where(Period.status == "published", Period.order_number > current_order)
@@ -192,7 +184,6 @@ async def get_period_detail(request: Request, period_id: int, next: bool = False
         period = result.scalar_one_or_none()
 
         if period is None:
-            # Дошли до конца — заворачиваем на самую первую опубликованную карточку
             first_stmt = (
                 select(Period)
                 .where(Period.status == "published")
@@ -202,13 +193,11 @@ async def get_period_detail(request: Request, period_id: int, next: bool = False
             result = await db.execute(first_stmt)
             period = result.scalar_one_or_none()
     else:
-        # Обычный прямой переход — тоже ровно одна строка из БД
         stmt = select(Period).where(Period.id == period_id, Period.status == "published")
         result = await db.execute(stmt)
         period = result.scalar_one_or_none()
 
     if period is None:
-        # Удалённые/несуществующие услуги смотреть нельзя — уходим на список
         return RedirectResponse(url="/", status_code=303)
 
     image_url, video_url = resolve_media(period)
@@ -231,7 +220,7 @@ async def get_period_detail(request: Request, period_id: int, next: bool = False
     )
 
 
-# ===== 6. POST удаления — через курсор (сырой SQL), БЕЗ ORM =====
+# ===== 6. POST удаления — через курсор =====
 @router.post("/period/{period_id}/delete")
 async def delete_period(period_id: int, db: AsyncSession = Depends(get_db)):
     update_query = """

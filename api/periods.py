@@ -14,7 +14,6 @@ router = APIRouter(prefix="/api/periods", tags=["periods"])
 
 
 def _likes_count():
-    """Подзапрос: сколько лайков у услуги."""
     return (
         select(func.count(Like.id))
         .where(Like.period_id == Period.id)
@@ -24,7 +23,6 @@ def _likes_count():
 
 
 def _is_liked(user_id: int):
-    """Подзапрос: есть ли лайк этого пользователя."""
     return exists().where(Like.period_id == Period.id, Like.user_id == user_id).correlate(Period)
 
 @router.get("", response_model=list[PeriodTile])
@@ -33,7 +31,6 @@ async def list_periods(
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Список опубликованных услуг с фильтром по количеству дней."""
     stmt = select(Period, _likes_count().label("likes_count")).where(Period.status == "published")
     if min_days is not None:
         stmt = stmt.where(Period.days_count >= min_days)
@@ -61,7 +58,6 @@ async def get_feed(
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Лента: одна услуга. Без id первая; с id эта; с id и next=true следующая по порядку (по кругу)."""
     base = select(
         Period,
         _likes_count().label("likes_count"),
@@ -117,7 +113,6 @@ async def get_draft(
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Черновик текущего пользователя (не более одного), id не указывается."""
     stmt = select(Period).where(Period.status == "draft", Period.creator_id == user.id)
     period = (await db.execute(stmt)).scalar_one_or_none()
     if period is None:
@@ -126,7 +121,6 @@ async def get_draft(
 
 
 async def _get_own_period(db: AsyncSession, period_id: int, user: CurrentUser) -> Period:
-    """Услуга текущего пользователя. Удалённые клиенту не показываем (404), чужие нельзя трогать (403)."""
     period = (
         await db.execute(select(Period).where(Period.id == period_id, Period.status != "deleted"))
     ).scalar_one_or_none()
@@ -146,7 +140,6 @@ async def create_period(
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
 ):
-    """Создание черновика: название и два файла (фото и короткое видео). Файлы в MinIO, в БД их имена."""
     has_draft = (
         await db.execute(select(Period.id).where(Period.status == "draft", Period.creator_id == user.id))
     ).first()
@@ -176,7 +169,6 @@ async def publish_period(
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Публикация: черновик -> опубликована. Статус и дату формирования ставит сервер, не клиент."""
     period = await _get_own_period(db, period_id, user)
     if period.status != "draft":
         raise HTTPException(status_code=409, detail="Опубликовать можно только черновик")
@@ -196,7 +188,6 @@ async def delete_period(
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Мягкое удаление своей услуги: строка остаётся в БД, статус становится «удалён»."""
     period = await _get_own_period(db, period_id, user)
     period.status = "deleted"
     await db.commit()
@@ -209,7 +200,6 @@ async def set_like(
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Лайк от текущего пользователя: like=1 поставить, like=0 отменить. Повтор ничего не ломает."""
     published = (
         await db.execute(select(Period.id).where(Period.id == period_id, Period.status == "published"))
     ).first()
