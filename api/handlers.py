@@ -8,6 +8,7 @@ from db.session import get_db
 from models.period import Period
 from models.user import User
 from models.like import Like
+from services.minio_service import get_minio_service
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -43,9 +44,9 @@ def days_label(count: int | None) -> str:
 
 
 def resolve_media(period: Period) -> tuple[str, str]:
-    """Возвращает (image_url, video_url), подставляя значения по умолчанию, если поля пустые."""
-    image_url = period.image_url or DEFAULT_IMAGE_URL
-    video_url = period.video_url or DEFAULT_VIDEO_URL
+    minio = get_minio_service()
+    image_url = minio.build_url(period.image_url) or DEFAULT_IMAGE_URL
+    video_url = minio.build_url(period.video_url) or DEFAULT_VIDEO_URL
     return image_url, video_url
 
 
@@ -138,7 +139,8 @@ async def create_draft(
         title=title,
         status="draft",
         creator_id=CURRENT_USER_ID,
-        # image_url/video_url оставляем пустыми — новые файлы в этой ЛР не сохраняются
+        image_url=DEFAULT_IMAGE_URL,
+        video_url=DEFAULT_VIDEO_URL,
     )
     db.add(new_period)
     await db.commit()

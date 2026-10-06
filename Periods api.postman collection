@@ -1,0 +1,312 @@
+{
+  "info": {
+    "name": "periods-api",
+    "description": "REST API каталога периодов: домен «периоды» (7 методов) и домен «пользователи» (3 метода).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "period_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Список периодов с фильтром",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/periods?min_days=60",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "periods"
+          ],
+          "query": [
+            {
+              "key": "min_days",
+              "value": "60"
+            }
+          ]
+        },
+        "description": "Только опубликованные. Фильтр min_days: минимальное количество дней. У каждого периода is_mine = 1, если создатель текущий пользователь (рисуем кнопку «Удалить»)."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Лента периодов",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/periods/feed",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "periods",
+            "feed"
+          ]
+        },
+        "description": "Одна опубликованная услуга. Без id первая по порядку. Второй вызов: заменить адрес на {{base_url}}/api/periods/feed/1?next=true (следующая после id=1, по кругу). is_liked = 1, если текущий пользователь уже поставил лайк."
+      },
+      "response": []
+    },
+    {
+      "name": "3. Черновик периода",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/periods/draft",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "periods",
+            "draft"
+          ]
+        },
+        "description": "Черновик текущего пользователя (не более одного), id не указывается. 404, если черновика нет."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Добавление периода (фото и видео)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/periods",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "periods"
+          ]
+        },
+        "description": "Создаёт черновик. Название и два файла (фото и короткое видео). Файлы уходят в MinIO, в БД их имена. Выберите файлы в полях image и video. id созданного периода автоматически сохраняется в переменную period_id.",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "title",
+              "value": "Январь",
+              "type": "text"
+            },
+            {
+              "key": "image",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "video",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    pm.collectionVariables.set('period_id', pm.response.json().id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Публикация периода",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/periods/{{period_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "periods",
+            "{{period_id}}"
+          ]
+        },
+        "description": "Черновик становится опубликованным. Статус и дату формирования ставит сервер. Лишние поля (status, creator_id...) в теле запрещены.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Отчётный период — январь 2026 года\",\n  \"order_number\": 1,\n  \"days_count\": 31\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. Удаление периода",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/periods/{{period_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "periods",
+            "{{period_id}}"
+          ]
+        },
+        "description": "Мягкое удаление своего периода (статус становится «удалён»). Ответ 204 без тела."
+      },
+      "response": []
+    },
+    {
+      "name": "7. Лайк периода",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/periods/{{period_id}}/like",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "periods",
+            "{{period_id}}",
+            "like"
+          ]
+        },
+        "description": "like = 1 ставит лайк, like = 0 отменяет. Ответ: актуальное количество лайков.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"like\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8. Регистрация пользователя",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/users",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "users"
+          ]
+        },
+        "description": "Создаёт пользователя. В ответе только id и login, пароль не возвращается.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"anna\",\n  \"password\": \"secret123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "9. Аутентификация (заглушка)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/users/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "users",
+            "login"
+          ]
+        },
+        "description": "Заглушка для 4-й лабораторной.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"anna\",\n  \"password\": \"secret123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "10. Деавторизация (заглушка)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/users/logout",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "users",
+            "logout"
+          ]
+        },
+        "description": "Заглушка для 4-й лабораторной."
+      },
+      "response": []
+    }
+  ]
+}
