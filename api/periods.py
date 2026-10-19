@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from sqlalchemy import delete, exists, func, select, tuple_
+from sqlalchemy import delete, exists, false, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from core.current_user import CurrentUser, get_current_user
+from core.current_user import CurrentUser, get_current_user, get_optional_user
 from db.session import get_db
 from models.like import Like
 from models.period import Period
@@ -11,7 +11,7 @@ from schemas.period import LikeIn, LikeOut, PeriodDetail, PeriodFeed, PeriodPubl
 from services.minio_service import MinioService, get_minio_service
 
 router = APIRouter(prefix="/api/periods", tags=["periods"])
-
+UNAUTHORIZED = {401: {"description": "Не авторизован"}}
 
 def _likes_count():
     return (
@@ -21,14 +21,20 @@ def _likes_count():
         .scalar_subquery()
     )
 
-
-def _is_liked(user_id: int):
+def _is_liked(user_id: int | None):
+    if user_id is None:
+        return false()
     return exists().where(Like.period_id == Period.id, Like.user_id == user_id).correlate(Period)
 
-@router.get("", response_model=list[PeriodTile])
+@router.get(
+    "",
+    response_model=list[PeriodTile],
+    summary="Список периодов",
+    description="Опубликованные периоды с фильтром по количеству дней. Доступно гостю; для гостя is_mine всегда 0.",
+)
 async def list_periods(
     min_days: int | None = Query(None, ge=0, description="Минимальное количество дней"),
-    user: CurrentUser = Depends(get_current_user),
+    user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(Period, _likes_count().label("likes_count")).where(Period.status == "published")
@@ -44,24 +50,36 @@ async def list_periods(
             "days_count": period.days_count,
             "image_url": period.image_url,
             "likes_count": likes_count,
-            "is_mine": int(period.creator_id == user.id),
+            "is_mine": int(user is not None and period.creator_id == user.id),
         }
         for period, likes_count in rows
     ]
 
 
-@router.get("/feed", response_model=PeriodFeed)
-@router.get("/feed/{period_id}", response_model=PeriodFeed)
+@router.get(
+    "/feed",
+    response_model=PeriodFeed,
+    summary="Лента (первый период)",
+    description="Один период ленты. Доступно гостю; для гостя is_liked всегда 0.",
+    responses={404: {"description": "Опубликованных периодов нет"}},
+)
+@router.get(
+    "/feed/{period_id}",
+    response_model=PeriodFeed,
+    summary="Лента (период по id или следующий)",
+    description="С next=false возвращает период с этим id, с next=true следующий по порядку (по кругу). Доступно гостю.",
+    responses={404: {"description": "Период не найден"}},
+)
 async def get_feed(
     period_id: int | None = None,
     next: bool = False,
-    user: CurrentUser = Depends(get_current_user),
+    user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
     base = select(
         Period,
         _likes_count().label("likes_count"),
-        _is_liked(user.id).label("is_liked"),
+        _is_liked(user.id if user else None).label("is_liked"),
     ).where(Period.status == "published")
     order = (Period.order_number, Period.id)
 
@@ -108,7 +126,13 @@ async def get_feed(
     }
 
 
-@router.get("/draft", response_model=PeriodDetail)
+@router.get(
+    "/draft",
+    response_model=PeriodDetail,
+    summary="Получить черновик",
+    description="Черновик текущего пользователя (не более одного). Только для авторизованного.",
+    responses={**UNAUTHORIZED, 404: {"description": "У пользователя нет черновика"}},
+)
 async def get_draft(
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -131,7 +155,14 @@ async def _get_own_period(db: AsyncSession, period_id: int, user: CurrentUser) -
     return period
 
 
-@router.post("", response_model=PeriodDetail, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=PeriodDetail,
+    status_code=status.HTTP_201_CREATED,
+    summary="Добавить период (черновик)",
+    description="Создаёт черновик: название, фото и видео. Автор берётся из сессии. Только для авторизованного.",
+    responses={**UNAUTHORIZED, 400: {"description": "Неверный тип или пустой файл"}, 409: {"description": "Черновик уже есть"}},
+)
 async def create_period(
     title: str = Form(..., min_length=1, max_length=100),
     image: UploadFile = File(...),
@@ -162,7 +193,13 @@ async def create_period(
     return period
 
 
-@router.put("/{period_id}", response_model=PeriodDetail)
+@router.put(
+    "/{period_id}",
+    response_model=PeriodDetail,
+    summary="Опубликовать период",
+    description="Заполняет описание, порядок и количество дней, переводит черновик в «опубликован». Только создатель.",
+    responses={**UNAUTHORIZED, 403: {"description": "Чужой период"}, 404: {"description": "Период не найден"}, 409: {"description": "Это не черновик"}},
+)
 async def publish_period(
     period_id: int,
     body: PeriodPublish,
@@ -182,7 +219,13 @@ async def publish_period(
     return period
 
 
-@router.delete("/{period_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{period_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить период",
+    description="Мягкое удаление своего периода (статус «удалён»). Только создатель.",
+    responses={**UNAUTHORIZED, 403: {"description": "Чужой период"}, 404: {"description": "Период не найден"}},
+)
 async def delete_period(
     period_id: int,
     user: CurrentUser = Depends(get_current_user),
@@ -192,8 +235,13 @@ async def delete_period(
     period.status = "deleted"
     await db.commit()
 
-
-@router.post("/{period_id}/like", response_model=LikeOut)
+@router.post(
+    "/{period_id}/like",
+    response_model=LikeOut,
+    summary="Поставить или убрать лайк",
+    description="like=1 поставить, 0 убрать. Повтор безопасен. Только для авторизованного.",
+    responses={**UNAUTHORIZED, 404: {"description": "Период не найден"}},
+)
 async def set_like(
     period_id: int,
     body: LikeIn,

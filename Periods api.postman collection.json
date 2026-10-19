@@ -1,0 +1,499 @@
+{
+  "info": {
+    "name": "Periods API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+  "item": [
+    {
+      "name": "1. Регистрация",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/users",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "users"
+          ]
+        },
+        "description": "Гость. Ожидаем 201.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"alex2\",\n  \"password\": \"secret1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Аутентификация",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/users/login",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "users",
+            "login"
+          ]
+        },
+        "description": "Ожидаем 200. Сервер выставляет куку session_id; её значение берём из браузера и вписываем вручную в заголовок Cookie.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"alex2\",\n  \"password\": \"secret1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Список периодов (гость, без куки)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods"
+          ]
+        },
+        "description": "Ожидаем 200. Чтение работает без куки."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Список периодов (с кукой)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id=hZCmU-nSm-1pcItG5zfzido-9t8TmnDN2LG7WHQ1yc8",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods"
+          ]
+        },
+        "description": "Ожидаем 200. is_mine=1 у своих периодов."
+      },
+      "response": []
+    },
+    {
+      "name": "5. Список периодов с фильтром",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods?min_days=31",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods"
+          ],
+          "query": [
+            {
+              "key": "min_days",
+              "value": "31"
+            }
+          ]
+        },
+        "description": "Фильтр по количеству дней. Ожидаем 200."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Добавление периода (черновик)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id=hZCmU-nSm-1pcItG5zfzido-9t8TmnDN2LG7WHQ1yc8",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods"
+          ]
+        },
+        "description": "Только авторизованный. Ожидаем 201.",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "title",
+              "value": "Март",
+              "type": "text"
+            },
+            {
+              "key": "image",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "video",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. Получить черновик",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id=hZCmU-nSm-1pcItG5zfzido-9t8TmnDN2LG7WHQ1yc8",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods/draft",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods",
+            "draft"
+          ]
+        },
+        "description": "Ожидаем 200 (или 404, если черновика нет)."
+      },
+      "response": []
+    },
+    {
+      "name": "8. Получить черновик (гость)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods/draft",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods",
+            "draft"
+          ]
+        },
+        "description": "Без куки. Ожидаем 401."
+      },
+      "response": []
+    },
+    {
+      "name": "9. Публикация (гость)",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods/1",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods",
+            "1"
+          ]
+        },
+        "description": "Без куки. Ожидаем 401.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Описание периода\",\n  \"order_number\": 3,\n  \"days_count\": 31\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "10. Публикация (создатель)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id=hZCmU-nSm-1pcItG5zfzido-9t8TmnDN2LG7WHQ1yc8",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods/1",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods",
+            "1"
+          ]
+        },
+        "description": "С кукой. Ожидаем 200 и заполненные поля.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Описание периода\",\n  \"order_number\": 3,\n  \"days_count\": 31\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "11. Лента (без id)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods/feed",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods",
+            "feed"
+          ]
+        },
+        "description": "Гость. Ожидаем 200."
+      },
+      "response": []
+    },
+    {
+      "name": "12. Лента (по id, следующий)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods/feed/1?next=true",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods",
+            "feed",
+            "1"
+          ],
+          "query": [
+            {
+              "key": "next",
+              "value": "true"
+            }
+          ]
+        },
+        "description": "Гость. Ожидаем 200."
+      },
+      "response": []
+    },
+    {
+      "name": "13. Лайк",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id=hZCmU-nSm-1pcItG5zfzido-9t8TmnDN2LG7WHQ1yc8",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods/1/like",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods",
+            "1",
+            "like"
+          ]
+        },
+        "description": "Только авторизованный. Ожидаем 200 и likes_count.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"like\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "14. Удаление периода",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id=hZCmU-nSm-1pcItG5zfzido-9t8TmnDN2LG7WHQ1yc8",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/periods/1",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "periods",
+            "1"
+          ]
+        },
+        "description": "Только создатель. Ожидаем 204."
+      },
+      "response": []
+    },
+    {
+      "name": "15. Деавторизация",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id=hZCmU-nSm-1pcItG5zfzido-9t8TmnDN2LG7WHQ1yc8",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/users/logout",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "users",
+            "logout"
+          ]
+        },
+        "description": "Ожидаем 204. После этого та же кука недействительна (401)."
+      },
+      "response": []
+    }
+  ]
+}
