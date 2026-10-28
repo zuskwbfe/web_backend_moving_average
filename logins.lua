@@ -1,5 +1,6 @@
-local logins = {}
+local result = {}
 for _, key in ipairs(redis.call('KEYS', 'session:*')) do
-    table.insert(logins, redis.call('HGET', key, 'login'))
+    local login = redis.call('HGET', key, 'login')
+    table.insert(result, key .. ' -> ' .. login)
 end
-return logins
+return result
